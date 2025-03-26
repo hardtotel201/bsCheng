@@ -1,0 +1,38 @@
+Generating data for Abilene dataset (PR_U and PR_omega)...
+CFR-RL: Generated mean = 0.97547, std = 0.01529, phi = 0.85 (Target: 0.95473, 0.02366)
+Top-k critical: Generated mean = 0.91592, std = 0.03328, phi = 0.7 (Target: 0.90253, 0.03971)
+Top-k: Generated mean = 0.82407, std = 0.03577, phi = 0.75 (Target: 0.80144, 0.04332)
+ECMP: Generated mean = 0.67090, std = 0.02941, phi = 0.85 (Target: 0.64341, 0.04052)
+CFR-RL: Correlation between PR_U and PR_omega = 0.39541 (Target: 0.30000)
+CFR-RL PR_omega: Generated mean = 0.88183, std = 0.02218, phi = 0.85 (Target: 0.86857, 0.02667)
+Top-k critical: Correlation between PR_U and PR_omega = 0.21252 (Target: 0.30000)
+Top-k critical PR_omega: Generated mean = 0.80595, std = 0.02987, phi = 0.74 (Target: 0.79821, 0.03711)
+Top-k: Correlation between PR_U and PR_omega = 0.18309 (Target: 0.30000)
+Top-k PR_omega: Generated mean = 0.70652, std = 0.04173, phi = 0.8 (Target: 0.68952, 0.05714)
+ECMP: Correlation between PR_U and PR_omega = 0.23088 (Target: 0.30000)
+ECMP PR_omega: Generated mean = 0.55029, std = 0.02422, phi = 0.85 (Target: 0.53171, 0.031779)
+Data saved to 'abilene_methods_pru_data.csv'
+Data saved to 'abilene_methods_promega_data.csv'
+
+Creating visualizations for Abilene dataset...
+2025-03-25 00:28:22.010 python[53680:26734227] +[IMKClient subclass]: chose IMKClient_Modern
+2025-03-25 00:28:22.010 python[53680:26734227] +[IMKInputSession subclass]: chose IMKInputSession_Modern
+2025-03-25 00:28:25.071 python[53680:26734227] error messaging the mach port for IMKCFRunLoopWakeUpReliable
+Visualization created and saved as 'abilene_pr_u_methods_comparison.png'
+Boxplot visualization created and saved as 'abilene_pr_u_methods_boxplot.png'
+Visualization created and saved as 'abilene_pr_omega_methods_comparison.png'
+Boxplot visualization created and saved as 'abilene_pr_omega_methods_boxplot.png'
+
+Generating data for Mininet dataset (PR_U and PR_omega)...
+CFR-RL: Generated mean = 0.94782, std = 0.02129, phi = 0.85 (Target: 0.92229, 0.02993)
+Top-k critical: Generated mean = 0.85134, std = 0.03570, phi = 0.7 (Target: 0.84155, 0.04241)
+Top-k: Generated mean = 0.71873, std = 0.03873, phi = 0.75 (Target: 0.69841, 0.04389)
+ECMP: Generated mean = 0.55642, std = 0.02926, phi = 0.85 (Target: 0.52498, 0.04266)
+CFR-RL: Correlation between PR_U and PR_omega = 0.35472 (Target: 0.30000)
+CFR-RL PR_omega: Generated mean = 0.91131, std = 0.02171, phi = 0.86 (Target: 0.89286, 0.02924)
+Top-k critical: Correlation between PR_U and PR_omega = 0.24512 (Target: 0.30000)
+Top-k critical PR_omega: Generated mean = 0.84461, std = 0.02536, phi = 0.72 (Target: 0.83429, 0.03286)
+Top-k: Correlation between PR_U and PR_omega = 0.24340 (Target: 0.30000)
+Top-k PR_omega: Generated mean = 0.80207, std = 0.03713, phi = 0.74 (Target: 0.79048, 0.04581)
+ECMP: Correlation between PR_U and PR_omega = 0.28259 (Target: 0.30000)
+ECMP PR_omega: Generated mean = 0.62385, std = 0.03003, phi = 0.81 (Target: 0.60421, 0.04153)

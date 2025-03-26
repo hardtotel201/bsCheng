@@ -46,7 +46,7 @@ def generate_ar_data(methods, num_samples=600):
                 next_val += shock
 
             # 减小周期性波动的幅度
-            cycle = 0.01 * np.sin(t / 70)
+            cycle = 0.01 * np.sin(t / 200)
             next_val += cycle
 
             # 确保值更接近目标平均值
@@ -142,40 +142,201 @@ def create_boxplot(df, dataset_name):
 
     print(f"Boxplot visualization created and saved as '{dataset_name.lower()}_methods_boxplot.png'")
 
-# Define parameters for Abilene dataset with different phi values
-abilene_methods = {
-    'Abilene-CFR-RL': {         'mean': 0.97473, 'std': 0.02166, 'phi': 0.85},  # Highest stability
-    'Abilene-Top-k critical': { 'mean': 0.90253, 'std': 0.03971, 'phi': 0.75},
-    'Abilene-Top-k': {          'mean': 0.80144, 'std': 0.04332, 'phi': 0.82},
-    'Abilene-ECMP': {           'mean': 0.64341, 'std': 0.04052, 'phi': 0.85}  # More variation
+def generate_correlated_datasets(pru_methods, promega_methods, correlation=0.3, num_samples=600):
+    """
+    生成具有AR(1)特性且具有一定相关性的PR_U和PR_omega数据集
+    
+    Args:
+        pru_methods: PR_U指标的方法参数
+        promega_methods: PR_omega指标的方法参数
+        correlation: 目标相关系数 (0-1之间)
+        num_samples: 样本数量
+        
+    Returns:
+        包含两个DataFrame的元组 (pru_df, promega_df)
+    """
+    # 首先生成PR_U数据集
+    pru_df = generate_ar_data(pru_methods, num_samples)
+    
+    # 为PR_omega创建数据
+    promega_data = {}
+    
+    # 对每个方法分别生成PR_omega数据
+    for method in pru_methods.keys():
+        # 获取PR_U数据和PR_omega目标参数
+        pru_values = pru_df[method].values
+        target_mean = promega_methods[method]['mean']
+        target_std = promega_methods[method]['std']
+        phi = promega_methods[method]['phi']  # 获取AR(1)过程的phi参数
+        
+        # 初始化PR_omega序列
+        promega_values = np.zeros(num_samples)
+        
+        # 第一个值可以有一定相关性
+        noise = np.random.normal(0, target_std)
+        promega_values[0] = np.clip(target_mean + noise, 0, 1.0)
+        
+        # 计算AR(1)过程参数
+        c = target_mean * (1 - phi)
+        innovation_var = target_std**2 * (1 - phi**2)
+        innovation_std = np.sqrt(innovation_var)
+        
+        # 使用AR(1)过程生成后续值，并引入与PR_U的轻微相关性
+        for t in range(1, num_samples):
+            # 生成基础AR(1)过程的下一个值
+            ar_component = c + phi * promega_values[t-1]
+            
+            # 从当前PR_U值提取影响信号
+            # 标准化并缩放到合适范围
+            pru_signal = (pru_values[t] - np.mean(pru_values)) / np.std(pru_values)
+            pru_signal = pru_signal * innovation_std * correlation * 0.5  # 调整影响程度
+            
+            # 生成随机创新
+            innovation = np.random.normal(0, innovation_std * (1 - correlation * 0.5))
+            
+            # 计算下一个值 = AR过程 + PR_U信号 + 随机创新
+            next_val = ar_component + pru_signal + innovation
+            
+            # 添加非常小的周期波动，保持平滑
+            cycle = 0.005 * np.sin(t / 200)  # 周期更长，幅度更小
+            next_val += cycle
+            
+            # 确保值不会偏离目标均值太远
+            deviation = next_val - target_mean
+            if abs(deviation) > 2 * target_std:
+                next_val = next_val - 0.6 * deviation
+            
+            # 对CFR-RL添加特殊处理
+            if 'CFR-RL' in method:
+                if next_val > 0.99:
+                    next_val = 0.965 + (0.035 * np.random.beta(5, 2))
+            
+            # 确保值在合理范围内
+            promega_values[t] = np.clip(next_val, 0, 1.0)
+        
+        # 存储生成的数据
+        promega_data[method] = promega_values
+        
+        # 验证相关性
+        actual_corr = np.corrcoef(pru_values, promega_values)[0, 1]
+        print(f"{method}: Correlation between PR_U and PR_omega = {actual_corr:.5f} (Target: {correlation:.5f})")
+        
+        # 验证PR_omega均值和标准差
+        actual_mean = np.mean(promega_values)
+        actual_std = np.std(promega_values)
+        print(f"{method} PR_omega: Generated mean = {actual_mean:.5f}, std = {actual_std:.5f}, phi = {phi} (Target: {target_mean}, {target_std})")
+    
+    # 创建PR_omega DataFrame
+    promega_df = pd.DataFrame(promega_data)
+    
+    return pru_df, promega_df
+
+# 重命名原有数据集定义为PR_U指标
+abilene_methods_pru = {
+    'CFR-RL': {         'mean': 0.95473, 'std': 0.02366, 'phi': 0.85},  # Highest stability
+    'Top-k critical': { 'mean': 0.90253, 'std': 0.03971, 'phi': 0.70},
+    'Top-k': {          'mean': 0.80144, 'std': 0.04332, 'phi': 0.75},
+    'ECMP': {           'mean': 0.64341, 'std': 0.04052, 'phi': 0.85}  # More variation
 }
 
-# Define parameters for Mininet dataset with different phi values
-mininet_methods = {
-    'Mininet-CFR-RL': {         'mean': 0.92229, 'std': 0.02993, 'phi': 0.85},
-    'Mininet-Top-k critical': { 'mean': 0.84155, 'std': 0.04241, 'phi': 0.70},  # Higher std, lower phi
-    'Mininet-Top-k': {          'mean': 0.69841, 'std': 0.04389, 'phi': 0.75},
-    'Mininet-ECMP': {           'mean': 0.52498, 'std': 0.02266, 'phi': 0.87}  # Low std, high phi
+mininet_methods_pru = {
+    'CFR-RL': {         'mean': 0.92229, 'std': 0.02993, 'phi': 0.85},
+    'Top-k critical': { 'mean': 0.84155, 'std': 0.04241, 'phi': 0.70},  # Higher std, lower phi
+    'Top-k': {          'mean': 0.69841, 'std': 0.04389, 'phi': 0.75},
+    'ECMP': {           'mean': 0.52498, 'std': 0.04266, 'phi': 0.85}  # Low std, high phi
 }
 
-# # Generate data for Abilene dataset
-# print("Generating data for Abilene dataset...")
-# abilene_df = generate_ar_data(abilene_methods)
-# abilene_df.to_csv('abilene_methods_data.csv', index=False)
-# print("Data generation complete for Abilene. Data saved to 'abilene_methods_data.csv'")
-#
-# # Create visualizations for Abilene dataset
-# print("\nCreating visualizations for Abilene dataset...")
-# create_line_chart(abilene_df, "Abilene")
-# create_boxplot(abilene_df, "Abilene")
+# 添加新的PR_omega指标数据集定义
+abilene_methods_promega = {
+    'CFR-RL': {         'mean': 0.86857, 'std': 0.02667, 'phi': 0.85},
+    'Top-k critical': { 'mean': 0.79821, 'std': 0.03711, 'phi': 0.74},
+    'Top-k': {          'mean': 0.68952, 'std': 0.05714, 'phi': 0.80},
+    'ECMP': {           'mean': 0.53171, 'std': 0.031779, 'phi': 0.85}
+}
 
-# Generate data for Mininet dataset
-print("\nGenerating data for Mininet dataset...")
-mininet_df = generate_ar_data(mininet_methods)
-mininet_df.to_csv('mininet_methods_data.csv', index=False)
-print("Data generation complete for Mininet. Data saved to 'mininet_methods_data.csv'")
+mininet_methods_promega = {
+    'CFR-RL': {         'mean': 0.89286, 'std': 0.02924, 'phi': 0.86},
+    'Top-k critical': { 'mean': 0.83429, 'std': 0.03286, 'phi': 0.72},
+    'Top-k': {          'mean': 0.79048, 'std': 0.04581, 'phi': 0.74},
+    'ECMP': {           'mean': 0.60421, 'std': 0.04153, 'phi': 0.81}
+}
 
-# Create visualizations for Mininet dataset
+# 生成相关的Abilene PR_U和PR_omega数据集
+print("\nGenerating data for Abilene dataset (PR_U and PR_omega)...")
+abilene_df_pru, abilene_df_promega = generate_correlated_datasets(
+    abilene_methods_pru, 
+    abilene_methods_promega,
+    correlation=0.3  # 设置适当的相关性
+)
+
+# 保存数据集
+abilene_df_pru.to_csv('abilene_methods_pru_data.csv', index=False)
+print("Data saved to 'abilene_methods_pru_data.csv'")
+abilene_df_promega.to_csv('abilene_methods_promega_data.csv', index=False)
+print("Data saved to 'abilene_methods_promega_data.csv'")
+
+# 创建可视化
+print("\nCreating visualizations for Abilene dataset...")
+create_line_chart(abilene_df_pru, "Abilene_PR_U")
+create_boxplot(abilene_df_pru, "Abilene_PR_U")
+create_line_chart(abilene_df_promega, "Abilene_PR_omega")
+create_boxplot(abilene_df_promega, "Abilene_PR_omega")
+
+# 生成相关的Mininet PR_U和PR_omega数据集
+print("\nGenerating data for Mininet dataset (PR_U and PR_omega)...")
+mininet_df_pru, mininet_df_promega = generate_correlated_datasets(
+    mininet_methods_pru, 
+    mininet_methods_promega,
+    correlation=0.3  # 设置适当的相关性
+)
+
+# 保存数据集
+mininet_df_pru.to_csv('mininet_methods_pru_data.csv', index=False)
+print("Data saved to 'mininet_methods_pru_data.csv'")
+mininet_df_promega.to_csv('mininet_methods_promega_data.csv', index=False)
+print("Data saved to 'mininet_methods_promega_data.csv'")
+
+# 创建可视化
 print("\nCreating visualizations for Mininet dataset...")
-create_line_chart(mininet_df, "Mininet")
-create_boxplot(mininet_df, "Mininet")
+create_line_chart(mininet_df_pru, "Mininet_PR_U")
+create_boxplot(mininet_df_pru, "Mininet_PR_U")
+create_line_chart(mininet_df_promega, "Mininet_PR_omega")
+create_boxplot(mininet_df_promega, "Mininet_PR_omega")
+
+# # 创建散点图展示相关性
+# def plot_correlation(df_pru, df_promega, dataset_name):
+#     """创建相关性散点图"""
+#     plt.figure(figsize=(16, 12))
+    
+#     # 为每个方法创建一个子图
+#     methods = df_pru.columns
+#     num_methods = len(methods)
+#     rows = (num_methods + 1) // 2  # 向上取整
+    
+#     for i, method in enumerate(methods, 1):
+#         plt.subplot(rows, 2, i)
+        
+#         # 绘制PR_U与PR_omega的散点图
+#         plt.scatter(df_pru[method], df_promega[method], alpha=0.5)
+        
+#         # 添加趋势线
+#         z = np.polyfit(df_pru[method], df_promega[method], 1)
+#         p = np.poly1d(z)
+#         plt.plot(df_pru[method], p(df_pru[method]), "r--")
+        
+#         # 计算相关系数
+#         corr = np.corrcoef(df_pru[method], df_promega[method])[0, 1]
+        
+#         plt.title(f'{method}: Correlation = {corr:.4f}')
+#         plt.xlabel('PR_U')
+#         plt.ylabel('PR_omega')
+#         plt.grid(True, linestyle='--', alpha=0.7)
+    
+#     plt.tight_layout()
+#     plt.savefig(f'{dataset_name.lower()}_correlation.png', dpi=300)
+#     plt.show()
+
+# 绘制相关性图表
+# print("\nCreating correlation plots...")
+# plot_correlation(abilene_df_pru, abilene_df_promega, "Abilene")
+# plot_correlation(mininet_df_pru, mininet_df_promega, "Mininet")
